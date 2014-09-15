@@ -1,0 +1,95 @@
+package com.castlecodestein.data;
+
+import java.beans.PropertyVetoException;
+import java.util.Properties;
+
+import javax.sql.DataSource;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.JpaVendorAdapter;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = { "com.castlecodestein.data" })
+@EnableJpaRepositories(basePackages = { "com.castlecodestein.data" })
+public class SpringConfiguration {
+
+	/**
+	 * Spring's JPA Entity Manager wrapper.
+	 * 
+	 * @param source
+	 * @return
+	 * @throws PropertyVetoException
+	 */
+	@Bean
+	public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+		LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
+		em.setDataSource(this.dataSource());
+		em.setPackagesToScan(new String[] { "com.castlecodestein.data" });
+		em.setPersistenceUnitName("default");
+
+		JpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+		em.setJpaVendorAdapter(vendorAdapter);
+		em.setJpaProperties(additionalProperties());
+
+		return em;
+	}
+
+	@Bean
+	public PlatformTransactionManager transactionManager(
+			LocalContainerEntityManagerFactoryBean entityManagerFactory) {
+		JpaTransactionManager transactionManager = new JpaTransactionManager();
+		transactionManager.setEntityManagerFactory(entityManagerFactory
+				.getObject());
+		return transactionManager;
+	}
+
+	@Bean
+	public PersistenceExceptionTranslationPostProcessor exceptionTranslation() {
+		return new PersistenceExceptionTranslationPostProcessor();
+	}
+
+	/**
+	 * Embedded data source. Schema.sql script resides in src/main/resources
+	 * folder and contains table/sequence definitions.
+	 * 
+	 * @return
+	 */
+	@Bean
+	public DataSource dataSource() {
+		return new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2)
+				.addScript("classpath:schema.sql").build();
+	}
+
+	/**
+	 * Hibernate specific properties.
+	 * 
+	 * @return
+	 */
+	private Properties additionalProperties() {
+		return new Properties() {
+			{ // Hibernate Specific:
+				setProperty("hibernate.dialect",
+						"org.hibernate.dialect.H2Dialect");
+				// setProperty("hibernate.show_sql", "true");
+				setProperty("hibernate.use_sql_comments", "true");
+				setProperty("hibernate.format_sql", "true");
+				// setProperty("hibernate.generate_statistics", "true");
+
+			}
+		};
+
+	}
+
+}
